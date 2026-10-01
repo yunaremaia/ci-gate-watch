@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Run test suite
+        run: python -m pytest tests/ -q
+
+      - name: Smoke test the offline workflow check
+        # The offline command needs no token, so CI can prove the drift
+        # detection actually works on a fixture repository.
+        run: |
+          set -euo pipefail
+          fixture="$(mktemp -d)"
+          mkdir -p "$fixture/.github/workflows"
+          cat > "$fixture/.github/workflows/ci.yml" <<'YAML'
+          name: CI
+          on:
+            pull_request:
+              branches: [main]
+          jobs:
+            lint:
+              runs-on: ubuntu-latest
+              steps:
+                - run: ruff check .
+          YAML
+          printf 'required_checks:\n  - lint\n  - typecheck\n' > "$fixture/.ci-gate-policy.yml"
+
+          ci-gate-watch check-contexts "$fixture" | grep -qx lint
+
+          set +e
+          output="$(ci-gate-watch checks "$fixture" --format json)"
+          code=$?
+          set -e
+          if [ "$code" -ne 1 ]; then
+            echo "expected exit 1 on orphaned required check, got $code"
+            exit 1
+          fi
+          echo "$output" | grep -q required_check_orphaned

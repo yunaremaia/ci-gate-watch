@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ci-gate-watch"
+version = "0.1.0"
+description = "Detect when a repository's CI validation gates drift from declared policy - required reviews, branch protection, required checks"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [{name = "Yunaremaia", email = "yunare@gmail.com"}]
+keywords = [
+    "branch-protection",
+    "ci-cd",
+    "devops",
+    "drift-detection",
+    "github",
+    "github-actions",
+    "governance",
+    "policy-as-code",
+]
+dependencies = ["PyYAML>=6.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+ci-gate-watch = "ci_gate_watch.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/yunaremaia/ci-gate-watch"
+Issues = "https://github.com/yunaremaia/ci-gate-watch/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
