@@ -109,8 +109,19 @@ def _triggers(data: dict[str, Any]) -> frozenset[str]:
 
 
 def _matrix_values(job_data: dict[str, Any]) -> list[str]:
-    """Cartesian product of the matrix axes, in declaration order."""
-    matrix = (job_data.get("strategy") or {}).get("matrix") or {}
+    """Cartesian product of the matrix axes, in declaration order.
+
+    A `strategy` that is not a mapping (a scalar or a list) means the workflow has
+    no matrix at all — GitHub rejects those shapes, so there is nothing to expand.
+    Validating here rather than catching AttributeError in the caller keeps a real
+    bug in the parser from being silently turned into a skipped file.
+    """
+    strategy = job_data.get("strategy")
+    if not isinstance(strategy, dict):
+        return []
+    matrix = strategy.get("matrix")
+    if not isinstance(matrix, dict):
+        return []
     axes = {
         key: [str(value) for value in values]
         for key, values in matrix.items()

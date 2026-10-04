@@ -200,68 +200,40 @@ def test_workflow_without_a_name_field_falls_back_to_the_filename():
     assert parse_workflow(text, "unit.yml").name == "unit"
 
 
-def test_non_mapping_strategy_skipped_silently(tmp_path):
-    """Non-mapping strategy: (scalar/list) raises AttributeError and is skipped.
+@pytest.mark.parametrize(
+    "strategy_block",
+    [
+        "    strategy: fast\n",                      # scalar
+        "    strategy: [a, b]\n",                    # list
+        "    strategy:\n      matrix: 3.11\n",      # scalar matrix
+    ],
+)
+def test_non_mapping_strategy_keeps_the_workflow(tmp_path, strategy_block):
+    """A non-mapping strategy leaves the job well-formed, so the file is kept.
 
     Regression test for https://github.com/yunaremaia/ci-gate-watch/issues/24
+
+    Dropping the file instead would hide the very check that job needs, which is
+    the outcome issue #24 complains about. Only the matrix expansion is skipped.
+    `test_strategy_shape.py` covers the same shapes at the `_matrix_values` level.
     """
     wf_dir = tmp_path / ".github" / "workflows"
     wf_dir.mkdir(parents=True)
-    # strategy: fast  — a bare string, not a mapping
     (wf_dir / "broken.yml").write_text(
         "name: Broken\n"
         "on: [push]\n"
         "jobs:\n"
         "  test:\n"
         "    runs-on: ubuntu-latest\n"
-        "    strategy: fast\n"
-        "    steps:\n"
-        "      - run: echo hi\n"
+        + strategy_block
+        + "    steps:\n"
+        "      - run: echo hi\n",
+        encoding="utf-8",
     )
     workflows = load_workflows(tmp_path)
-    assert workflows == [], "malformed workflow should be skipped, not crash"
-
-
-def test_non_mapping_matrix_skipped_silently(tmp_path):
-    """Non-mapping matrix (scalar) raises AttributeError and is skipped.
-
-    Regression test for https://github.com/yunaremaia/ci-gate-watch/issues/24
-    """
-    wf_dir = tmp_path / ".github" / "workflows"
-    wf_dir.mkdir(parents=True)
-    # strategy.matrix: 3.11 — a bare scalar, not a mapping
-    (wf_dir / "broken.yml").write_text(
-        "name: Broken\n"
-        "on: [push]\n"
-        "jobs:\n"
-        "  test:\n"
-        "    runs-on: ubuntu-latest\n"
-        "    strategy:\n"
-        "      matrix: 3.11\n"
-        "    steps:\n"
-        "      - run: echo hi\n"
+    assert [w.name for w in workflows] == ["Broken"], (
+        "a malformed strategy must not discard the workflow"
     )
-    workflows = load_workflows(tmp_path)
-    assert workflows == [], "malformed workflow should be skipped, not crash"
-
-
-def test_non_mapping_strategy_list_skipped_silently(tmp_path):
-    """Non-mapping strategy (list) raises AttributeError and is skipped.
-
-    Regression test for https://github.com/yunaremaia/ci-gate-watch/issues/24
-    """
-    wf_dir = tmp_path / ".github" / "workflows"
-    wf_dir.mkdir(parents=True)
-    # strategy: [a, b] — a list, not a mapping
-    (wf_dir / "broken.yml").write_text(
-        "name: Broken\n"
-        "on: [push]\n"
-        "jobs:\n"
-        "  test:\n"
-        "    runs-on: ubuntu-latest\n"
-        "    strategy: [a, b]\n"
-        "    steps:\n"
-        "      - run: echo hi\n"
+    assert workflows[0].jobs[0].contexts == ("test",), (
+        "the job survives; only the matrix expansion is skipped"
     )
-    workflows = load_workflows(tmp_path)
-    assert workflows == [], "malformed workflow should be skipped, not crash"
