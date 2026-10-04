@@ -176,7 +176,7 @@ def load_workflows(root: Path) -> list[Workflow]:
             continue
         try:
             workflows.append(parse_workflow(path.read_text(encoding="utf-8"), path))
-        except (yaml.YAMLError, TypeError, ValueError, OSError, UnicodeDecodeError):
+        except (yaml.YAMLError, TypeError, ValueError, OSError, UnicodeDecodeError, AttributeError):
             continue
     return workflows
 

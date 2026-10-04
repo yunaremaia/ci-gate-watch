@@ -198,3 +198,70 @@ def test_both_workflow_extensions_are_supported(tmp_path, suffix):
 def test_workflow_without_a_name_field_falls_back_to_the_filename():
     text = "on: [push]\njobs:\n  test:\n    steps: []\n"
     assert parse_workflow(text, "unit.yml").name == "unit"
+
+
+def test_non_mapping_strategy_skipped_silently(tmp_path):
+    """Non-mapping strategy: (scalar/list) raises AttributeError and is skipped.
+
+    Regression test for https://github.com/yunaremaia/ci-gate-watch/issues/24
+    """
+    wf_dir = tmp_path / ".github" / "workflows"
+    wf_dir.mkdir(parents=True)
+    # strategy: fast  — a bare string, not a mapping
+    (wf_dir / "broken.yml").write_text(
+        "name: Broken\n"
+        "on: [push]\n"
+        "jobs:\n"
+        "  test:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    strategy: fast\n"
+        "    steps:\n"
+        "      - run: echo hi\n"
+    )
+    workflows = load_workflows(tmp_path)
+    assert workflows == [], "malformed workflow should be skipped, not crash"
+
+
+def test_non_mapping_matrix_skipped_silently(tmp_path):
+    """Non-mapping matrix (scalar) raises AttributeError and is skipped.
+
+    Regression test for https://github.com/yunaremaia/ci-gate-watch/issues/24
+    """
+    wf_dir = tmp_path / ".github" / "workflows"
+    wf_dir.mkdir(parents=True)
+    # strategy.matrix: 3.11 — a bare scalar, not a mapping
+    (wf_dir / "broken.yml").write_text(
+        "name: Broken\n"
+        "on: [push]\n"
+        "jobs:\n"
+        "  test:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    strategy:\n"
+        "      matrix: 3.11\n"
+        "    steps:\n"
+        "      - run: echo hi\n"
+    )
+    workflows = load_workflows(tmp_path)
+    assert workflows == [], "malformed workflow should be skipped, not crash"
+
+
+def test_non_mapping_strategy_list_skipped_silently(tmp_path):
+    """Non-mapping strategy (list) raises AttributeError and is skipped.
+
+    Regression test for https://github.com/yunaremaia/ci-gate-watch/issues/24
+    """
+    wf_dir = tmp_path / ".github" / "workflows"
+    wf_dir.mkdir(parents=True)
+    # strategy: [a, b] — a list, not a mapping
+    (wf_dir / "broken.yml").write_text(
+        "name: Broken\n"
+        "on: [push]\n"
+        "jobs:\n"
+        "  test:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    strategy: [a, b]\n"
+        "    steps:\n"
+        "      - run: echo hi\n"
+    )
+    workflows = load_workflows(tmp_path)
+    assert workflows == [], "malformed workflow should be skipped, not crash"
