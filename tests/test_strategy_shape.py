@@ -11,26 +11,9 @@ not in the caller's exception tuple: catching AttributeError in `load_workflows`
 would also swallow every genuine attribute bug in the parser.
 """
 
-from pathlib import Path
-
 import pytest
 
 from ci_gate_watch.workflows import _matrix_values, load_workflows, parse_workflow
-
-
-def _wf(tmp_path: Path, strategy_block: str) -> Path:
-    wf_dir = tmp_path / ".github" / "workflows"
-    wf_dir.mkdir(parents=True)
-    (wf_dir / "w.yml").write_text(
-        "name: W\n"
-        "on: [push]\n"
-        "jobs:\n"
-        "  test:\n"
-        "    runs-on: ubuntu-latest\n" + strategy_block + "    steps:\n      - run: echo hi\n",
-        encoding="utf-8",
-    )
-    return tmp_path
-
 
 # --- the root cause: _matrix_values must not assume strategy is a mapping ---
 
@@ -100,11 +83,12 @@ def test_a_malformed_strategy_keeps_the_job_and_does_not_hide_the_other_file(tmp
     )
 
 
-def test_parse_workflow_on_a_scalar_strategy_still_raises_type_error(tmp_path):
+def test_parse_workflow_still_raises_type_error_on_a_non_mapping_jobs():
     """Malformed *job* data keeps raising; only strategy shape is tolerated.
 
     parse_workflow already validates that jobs is a mapping. That contract must
-    not silently widen into "accept anything".
+    not silently widen into "accept anything" now that strategy is checked with
+    isinstance too — the two validations are independent.
     """
     bad = "name: W\non: [push]\njobs: not-a-mapping\n"
     with pytest.raises(TypeError):
