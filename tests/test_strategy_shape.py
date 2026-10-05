@@ -6,9 +6,15 @@ real drift failure, so `audit --with-workflows` threw away every finding it had
 already computed and reported zero.
 
 `_matrix_values` reads `strategy` as a mapping twice (`.get("strategy")` then
-`.get("matrix")`) and only validates `matrix` afterwards. The fix belongs there,
-not in the caller's exception tuple: catching AttributeError in `load_workflows`
-would also swallow every genuine attribute bug in the parser.
+`.get("matrix")`) and only validated `matrix` afterwards. The fix belongs there,
+not in the caller's exception tuple: `load_workflows` must skip unparseable files
+and nothing else, so an AttributeError anywhere else in the parser has to stay
+visible. These tests double as the guard for that — if the shape check is ever
+removed and AttributeError re-added to the caller instead, the parametrized cases
+below fail with the original traceback.
+
+`tests/test_workflows.py::test_non_mapping_strategy_keeps_the_workflow` covers the
+same three shapes through `load_workflows`.
 """
 
 import pytest

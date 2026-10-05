@@ -219,7 +219,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         return _HANDLERS[args.command](args)
-    except (UsageError, GitHubError, PolicyError, ValueError, AttributeError) as exc:
+    except (UsageError, GitHubError, PolicyError, ValueError) as exc:
         print(f"ci-gate-watch: {exc}", file=sys.stderr)
         return EXIT_ERROR
 
