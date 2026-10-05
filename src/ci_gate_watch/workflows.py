@@ -113,8 +113,9 @@ def _matrix_values(job_data: dict[str, Any]) -> list[str]:
 
     A `strategy` that is not a mapping (a scalar or a list) means the workflow has
     no matrix at all — GitHub rejects those shapes, so there is nothing to expand.
-    Validating here rather than catching AttributeError in the caller keeps a real
-    bug in the parser from being silently turned into a skipped file.
+    Validating here is what lets the caller skip only unparseable files: every
+    other attribute error still propagates instead of being turned into a
+    silently skipped workflow.
     """
     strategy = job_data.get("strategy")
     if not isinstance(strategy, dict):
@@ -187,7 +188,7 @@ def load_workflows(root: Path) -> list[Workflow]:
             continue
         try:
             workflows.append(parse_workflow(path.read_text(encoding="utf-8"), path))
-        except (yaml.YAMLError, TypeError, ValueError, OSError, UnicodeDecodeError, AttributeError):
+        except (yaml.YAMLError, TypeError, ValueError, OSError, UnicodeDecodeError):
             continue
     return workflows
 
